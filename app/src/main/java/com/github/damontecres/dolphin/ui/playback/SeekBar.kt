@@ -1,4 +1,4 @@
-package com.github.damontecres.stashapp.ui.components.playback
+package com.github.damontecres.dolphin.ui.playback
 
 /*
  * Modified from https://github.com/android/tv-samples
@@ -42,7 +42,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.dolphin.ui.handleDPadKeyEvents
-import com.github.damontecres.dolphin.ui.playback.ControllerViewState
 
 @Composable
 fun SeekBarImpl(
