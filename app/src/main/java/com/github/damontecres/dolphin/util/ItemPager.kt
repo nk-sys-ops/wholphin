@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jellyfin.sdk.api.client.ApiClient
@@ -99,6 +100,16 @@ class ItemPager(
                 }
             }
         }
+
+    suspend fun toBlockingList(): List<BaseItem> {
+        init()
+        return object : AbstractList<BaseItem>() {
+            override val size: Int
+                get() = totalCount
+
+            override fun get(index: Int): BaseItem = runBlocking { getBlocking(index)!! }
+        }
+    }
 
     companion object {
         private const val DEBUG = false
