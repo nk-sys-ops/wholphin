@@ -89,7 +89,10 @@ fun GridCard(
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.padding(bottom = spaceBelow).fillMaxWidth(),
+            modifier =
+                Modifier
+                    .padding(bottom = spaceBelow)
+                    .fillMaxWidth(),
         ) {
             Text(
                 text = item?.name ?: "",
