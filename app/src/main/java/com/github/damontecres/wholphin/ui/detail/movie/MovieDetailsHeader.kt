@@ -24,14 +24,11 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.ui.components.DotSeparatedRow
+import com.github.damontecres.wholphin.ui.components.MovieQuickDetails
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
-import com.github.damontecres.wholphin.ui.roundMinutes
-import com.github.damontecres.wholphin.ui.timeRemaining
 import org.jellyfin.sdk.model.api.PersonKind
-import org.jellyfin.sdk.model.extensions.ticks
 
 @Composable
 fun MovieDetailsHeader(
@@ -64,25 +61,7 @@ fun MovieDetailsHeader(
             modifier = Modifier.fillMaxWidth(.60f),
         ) {
             val padding = 8.dp
-            val details =
-                remember(dto) {
-                    buildList {
-                        dto.productionYear?.let { add(it.toString()) }
-                        val duration = dto.runTimeTicks?.ticks
-                        duration
-                            ?.roundMinutes
-                            ?.toString()
-                            ?.let(::add)
-                        dto.timeRemaining?.roundMinutes?.let { add("$it left") }
-                        dto.officialRating?.let(::add)
-                    }
-                }
-            DotSeparatedRow(
-                texts = details,
-                rating = dto.communityRating,
-                textStyle = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = padding),
-            )
+            MovieQuickDetails(dto, Modifier.padding(bottom = padding))
 
             VideoStreamDetails(
                 preferences = preferences,
@@ -114,9 +93,15 @@ fun MovieDetailsHeader(
                     interactionSource = interactionSource,
                 )
             }
-            movie.data.people
-                ?.filter { it.type == PersonKind.DIRECTOR && it.name.isNotNullOrBlank() }
-                ?.joinToString(", ") { it.name!! }
+
+            val directorName =
+                remember(movie.data.people) {
+                    movie.data.people
+                        ?.filter { it.type == PersonKind.DIRECTOR && it.name.isNotNullOrBlank() }
+                        ?.joinToString(", ") { it.name!! }
+                }
+
+            directorName
                 ?.let {
                     Text(
                         text = stringResource(R.string.directed_by, it),
