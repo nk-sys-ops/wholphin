@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.ExperimentalPreferences
@@ -41,10 +42,11 @@ class DeviceProfileService
         ): DeviceProfile =
             withContext(WholphinDispatchers.Default) {
                 val prefs = appPrefs.playbackPreferences
+                val rawBitrate = prefs.maxBitrate.takeIf { it > 0 } ?: AppPreference.DEFAULT_BITRATE
                 mutex.withLock {
                     val newConfig =
                         DeviceProfileConfiguration(
-                            maxBitrate = prefs.maxBitrate.toInt(),
+                            maxBitrate = rawBitrate.toInt(),
                             overrides = prefs.overrides,
                             experimental = appPrefs.experimentalPreferences,
                             jellyfinTenEleven =
