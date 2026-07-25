@@ -89,8 +89,13 @@ class PlayerFactory
                         val useLibAss =
                             prefs.overrides.assPlaybackMode == AssPlaybackMode.ASS_LIBASS
                         val decodeAv1 = prefs.overrides.decodeAv1
+                        // Opt-in only. The previous form fell back to `true` when the
+                        // experimental master switch was off, which on a fresh install
+                        // (proto3 bools default to false) forced the TsExtractor flags ON
+                        // while every toggle in the UI read OFF — flags applied to every
+                        // channel with no way to see or disable it.
                         val iptvRecovery =
-                            if (appPreferences.experimentalPreferences.enabled) appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled else true
+                            appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled
                         Timber.v(
                             "extensions=%s, assPlaybackMode=%s",
                             extensions,
@@ -146,6 +151,47 @@ class PlayerFactory
                             .build()
                             .apply {
                                 assHandler?.init(this)
+
+                                // Always-on playback diagnostics (not gated on any toggle).
+                                // Errors were previously swallowed entirely, so a failure
+                                // surfaced only as "it doesn't work" with nothing actionable in
+                                // logcat. Grep WHOLPHIN_DIAG to pull just these lines.
+                                addListener(
+                                    object : Player.Listener {
+                                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                            Timber.e(
+                                                error,
+                                                "WHOLPHIN_DIAG playback_error code=%d codeName=%s msg=%s cause=%s",
+                                                error.errorCode,
+                                                error.errorCodeName,
+                                                error.message,
+                                                error.cause?.toString(),
+                                            )
+                                        }
+
+                                        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                                            if (tracks.groups.isEmpty()) {
+                                                Timber.w("WHOLPHIN_DIAG tracks_changed NO_TRACKS_AT_ALL")
+                                                return
+                                            }
+                                            tracks.groups.forEach { group ->
+                                                for (i in 0 until group.length) {
+                                                    val f = group.getTrackFormat(i)
+                                                    Timber.i(
+                                                        "WHOLPHIN_DIAG track type=%d selected=%b mime=%s codec=%s channels=%d rate=%d lang=%s",
+                                                        group.type,
+                                                        group.isTrackSelected(i),
+                                                        f.sampleMimeType,
+                                                        f.codecs,
+                                                        f.channelCount,
+                                                        f.sampleRate,
+                                                        f.language,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
                         if (iptvRecovery) {
                             addListener(
                                 object : Player.Listener {
