@@ -37,6 +37,17 @@ object ExperimentalPreference {
             summaryOff = R.string.disabled,
         )
 
+    val IptvAudioRecovery =
+        AppSwitchPreference<AppPreferences>(
+            title = R.string.iptv_audio_recovery,
+            defaultValue = true,
+            getter = { it.experimentalPreferences.iptvAudioRecoveryEnabled },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { iptvAudioRecoveryEnabled = value }
+            },
+            summaryOn = R.string.enabled,
+            summaryOff = R.string.disabled,
+        )
     val PreferAc3ForSurround =
         AppSwitchPreference<AppPreferences>(
             title = R.string.prefer_ac3_for_surround,
@@ -70,6 +81,7 @@ val experimentalPreferences =
                 preferences =
                     listOf(
                         ExperimentalPreference.VideoTunneling,
+                        ExperimentalPreference.IptvAudioRecovery,
                         ExperimentalPreference.PreferAc3ForSurround,
                     ),
             ),

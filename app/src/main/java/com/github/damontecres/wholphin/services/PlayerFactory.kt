@@ -102,7 +102,7 @@ class PlayerFactory
                                 else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
                             }
                         val dataSourceFactory = DefaultDataSource.Factory(context)
-                        val extractorsFactory = createExtractorsFactory()
+                        val extractorsFactory = createExtractorsFactory(iptvRecovery)
                         var renderersFactory: RenderersFactory =
                             WholphinRenderersFactory(context, decodeAv1)
                                 .setEnableDecoderFallback(true)
@@ -134,6 +134,8 @@ class PlayerFactory
                             }
                         val tunneling =
                             appPreferences.experimentalPreferences.get { videoTunnelingEnabled }
+                        val iptvRecovery =
+                            appPreferences.experimentalPreferences.enabled { iptvAudioRecoveryEnabled }
                         val trackSelector = createTrackSelector(tunneling)
 
                         ExoPlayer
@@ -144,8 +146,9 @@ class PlayerFactory
                             .build()
                             .apply {
                                 assHandler?.init(this)
-                        addListener(
-                            object : Player.Listener {
+                        if (iptvRecovery) {
+                            addListener(
+                                object : Player.Listener {
                                  override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                                      val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
                                      if (audioGroups.isNotEmpty() && tracks.groups.none { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }) {
@@ -163,7 +166,8 @@ class PlayerFactory
                                      }
                                  }
                              },
-                        )
+                            )
+                        }
                                 withContext(WholphinDispatchers.Main) {
                                     setAudioAttributes(
                                         AudioAttributes
@@ -220,14 +224,18 @@ class PlayerFactory
                 }
         }
 
-        private fun createExtractorsFactory() =
+        private fun createExtractorsFactory(iptvRecovery: Boolean = true) =
             DefaultExtractorsFactory()
                 .setConstantBitrateSeekingEnabled(true)
                 .setConstantBitrateSeekingAlwaysEnabled(true)
-                .setTsExtractorFlags(
-                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
-                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
-                )
+                .apply {
+                    if (iptvRecovery) {
+                        setTsExtractorFlags(
+                            androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                            androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
+                        )
+                    }
+                }
 
         private fun createTrackSelector(tunneling: Boolean? = null) =
             DefaultTrackSelector(context).apply {
