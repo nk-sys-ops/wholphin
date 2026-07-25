@@ -144,6 +144,26 @@ class PlayerFactory
                             .build()
                             .apply {
                                 assHandler?.init(this)
+                        addListener(
+                            object : Player.Listener {
+                                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                                     val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                                     if (audioGroups.isNotEmpty() && tracks.groups.none { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }) {
+                                         val firstAudioGroup = audioGroups.first()
+                                         trackSelector.parameters =
+                                             trackSelector
+                                                 .buildUponParameters()
+                                                 .setOverrideForType(
+                                                     androidx.media3.common.TrackSelectionOverride(
+                                                        firstAudioGroup.mediaTrackGroup,
+                                                        0,
+                                                     ),
+                                                 ).build()
+                                         Timber.i("ExoPlayer auto-selected fallback audio track: %s", firstAudioGroup.mediaTrackGroup)
+                                     }
+                                 }
+                             },
+                        )
                                 withContext(WholphinDispatchers.Main) {
                                     setAudioAttributes(
                                         AudioAttributes
@@ -204,6 +224,10 @@ class PlayerFactory
             DefaultExtractorsFactory()
                 .setConstantBitrateSeekingEnabled(true)
                 .setConstantBitrateSeekingAlwaysEnabled(true)
+                .setTsExtractorFlags(
+                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
+                )
 
         private fun createTrackSelector(tunneling: Boolean? = null) =
             DefaultTrackSelector(context).apply {
