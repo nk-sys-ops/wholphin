@@ -888,4 +888,6 @@
     <string name="user_views">User views</string>
     <string name="books">Books</string>
     <string name="audio_books">Audio books</string>
+    <string name="iptv_audio_recovery">IPTV Audio Track Recovery</string>
+    <string name="iptv_audio_recovery_summary">Auto-select fallback audio streams and apply TiviMate-grade TsExtractor flags on IPTV feeds</string>
 </resources>
