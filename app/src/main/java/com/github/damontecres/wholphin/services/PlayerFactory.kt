@@ -89,6 +89,8 @@ class PlayerFactory
                         val useLibAss =
                             prefs.overrides.assPlaybackMode == AssPlaybackMode.ASS_LIBASS
                         val decodeAv1 = prefs.overrides.decodeAv1
+                        val iptvRecovery =
+                            if (appPreferences.experimentalPreferences.enabled) appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled else true
                         Timber.v(
                             "extensions=%s, assPlaybackMode=%s",
                             extensions,
@@ -134,8 +136,6 @@ class PlayerFactory
                             }
                         val tunneling =
                             appPreferences.experimentalPreferences.get { videoTunnelingEnabled }
-                        val iptvRecovery =
-                            if (appPreferences.experimentalPreferences.enabled) appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled else true
                         val trackSelector = createTrackSelector(tunneling)
 
                         ExoPlayer
