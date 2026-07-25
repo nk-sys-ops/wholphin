@@ -367,7 +367,8 @@ sealed interface AppPreference<Pref, T> {
                 max = bitrateValues.size - 1L,
                 interval = 1,
                 getter = {
-                    bitrateValues.indexOf(it.playbackPreferences.maxBitrate).toLong()
+                    bitrateValues.indexOf(it.playbackPreferences.maxBitrate).takeIf { idx -> idx >= 0 }?.toLong()
+                        ?: bitrateValues.indexOf(DEFAULT_BITRATE).toLong()
                 },
                 setter = { prefs, value ->
                     prefs.updatePlaybackPreferences {
