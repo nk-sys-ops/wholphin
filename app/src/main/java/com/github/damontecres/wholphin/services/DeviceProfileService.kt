@@ -6,6 +6,7 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.ExperimentalPreferences
 import com.github.damontecres.wholphin.preferences.PlaybackOverrides
+import com.github.damontecres.wholphin.preferences.get
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.profile.MediaCodecCapabilitiesTest
 import com.github.damontecres.wholphin.util.profile.createDeviceProfile
@@ -51,6 +52,7 @@ class DeviceProfileService
                             experimental = appPrefs.experimentalPreferences,
                             jellyfinTenEleven =
                                 serverVersion != null && serverVersion >= ServerVersion(10, 11, 0),
+                            tsDirectPlay = true,
                         )
                     if (deviceProfile == null || this@DeviceProfileService.configuration != newConfig) {
                         this@DeviceProfileService.configuration = newConfig
@@ -66,9 +68,10 @@ class DeviceProfileService
                                 decodeAv1 = prefs.overrides.decodeAv1,
                                 preferAc3ForSurround = appPrefs.experimentalPreferences.preferAc3Surround,
                                 jellyfinTenEleven = newConfig.jellyfinTenEleven,
+                                tsDirectPlay = newConfig.tsDirectPlay,
                             )
                     }
-                    this@DeviceProfileService.deviceProfile!!
+                    this@DeviceProfileService.deviceProfile!!.also { timber.log.Timber.e("DEVICE PROFILE: %s", it) }
                 }
             }
     }
@@ -81,4 +84,5 @@ data class DeviceProfileConfiguration(
     val overrides: PlaybackOverrides,
     val experimental: ExperimentalPreferences,
     val jellyfinTenEleven: Boolean,
+    val tsDirectPlay: Boolean,
 )

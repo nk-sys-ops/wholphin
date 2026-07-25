@@ -847,6 +847,8 @@
     <string name="production_status">Production status</string>
     <string name="different_for_hdr">Use different style for HDR</string>
     <string name="experimental_settings">Experimental settings</string>
+    <string name="ts_direct_play">Direct Play TS</string>
+    <string name="ts_direct_play_summary">Direct play MPEG-TS streams instead of forcing HLS transcoding</string>
     <string name="confirm_enable_experimental_title">Enable experimental settings?</string>
     <string name="confirm_enable_experimental_body">Experimental settings may be unstable!\n\n These may removed or changed in any release.</string>
     <string name="video_tunneling">Video tunneling</string>

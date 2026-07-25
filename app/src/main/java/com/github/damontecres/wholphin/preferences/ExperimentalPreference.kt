@@ -71,6 +71,19 @@ object ExperimentalPreference {
                 }
             },
         )
+
+    val TsDirectPlay =
+        AppSwitchPreference<AppPreferences>(
+            title = R.string.ts_direct_play,
+            defaultValue = false, // Default to FALSE to force HLS in the experiment
+            getter = { it.experimentalPreferences.tsDirectPlay },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { tsDirectPlay = value }
+            },
+            summaryOn = R.string.enabled,
+            summaryOff = R.string.disabled,
+            summary = R.string.ts_direct_play_summary,
+        )
 }
 
 val experimentalPreferences =
@@ -83,6 +96,7 @@ val experimentalPreferences =
                         ExperimentalPreference.VideoTunneling,
                         ExperimentalPreference.IptvAudioRecovery,
                         ExperimentalPreference.PreferAc3ForSurround,
+                        ExperimentalPreference.TsDirectPlay,
                     ),
             ),
         )

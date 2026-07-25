@@ -101,6 +101,14 @@
                 android:name="autoStoreLocales"
                 android:value="false" />
         </service>
+
+        <receiver
+            android:name=".debug.DebugReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.damontecres.wholphin.UPDATE_PREFS" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
