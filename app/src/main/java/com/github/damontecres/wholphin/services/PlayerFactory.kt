@@ -135,7 +135,7 @@ class PlayerFactory
                         val tunneling =
                             appPreferences.experimentalPreferences.get { videoTunnelingEnabled }
                         val iptvRecovery =
-                            appPreferences.experimentalPreferences.enabled { iptvAudioRecoveryEnabled }
+                            if (appPreferences.experimentalPreferences.enabled) appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled else true
                         val trackSelector = createTrackSelector(tunneling)
 
                         ExoPlayer
