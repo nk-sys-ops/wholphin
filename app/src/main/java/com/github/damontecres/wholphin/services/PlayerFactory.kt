@@ -139,13 +139,28 @@ class PlayerFactory
                                     extractorsFactory,
                                 )
                             }
+                        // Jellyfin Live TV can advertise a video-only codecs string when its
+                        // probe of the tuner stream misses the audio track. ExoPlayer then sets
+                        // FLAG_IGNORE_AAC_STREAM and discards the AAC elementary stream that is
+                        // actually present, producing video with no audio track group at all.
+                        // Reuses the IPTV audio recovery toggle since this is the same symptom.
+                        val finalMediaSourceFactory =
+                            if (iptvRecovery) {
+                                com.github.damontecres.wholphin.util.player.WholphinMediaSourceFactory(
+                                    default = mediaSourceFactory,
+                                    dataSourceFactory = dataSourceFactory,
+                                )
+                            } else {
+                                mediaSourceFactory
+                            }
+
                         val tunneling =
                             appPreferences.experimentalPreferences.get { videoTunnelingEnabled }
                         val trackSelector = createTrackSelector(tunneling)
 
                         ExoPlayer
                             .Builder(context)
-                            .setMediaSourceFactory(mediaSourceFactory)
+                            .setMediaSourceFactory(finalMediaSourceFactory)
                             .setRenderersFactory(renderersFactory)
                             .setTrackSelector(trackSelector)
                             .build()
