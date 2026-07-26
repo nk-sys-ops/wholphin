@@ -25,6 +25,17 @@ class AppPreferencesSerializer
                     debugLogging = AppPreference.DebugLogging.defaultValue
                     signInAutomatically = AppPreference.SignInAuto.defaultValue
 
+                    // Ships enabled: this gate now also carries the Live TV AAC fix
+                    // (see AacAwareHlsExtractorFactory), which these channels need to
+                    // have any audio at all. proto3 bools default to false, so without
+                    // this the fix would be off on a fresh install.
+                    experimentalPreferences =
+                        ExperimentalPreferences
+                            .newBuilder()
+                            .apply {
+                                iptvAudioRecoveryEnabled = true
+                            }.build()
+
                     playbackPreferences =
                         PlaybackPreferences
                             .newBuilder()
