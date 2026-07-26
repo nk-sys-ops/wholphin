@@ -128,7 +128,7 @@ configure<ApplicationExtension> {
             isDebuggable = true
             // Distinct id so this build installs alongside an upstream Wholphin
             // without clashing, and without carrying "debug" in the user-visible name.
-            applicationIdSuffix = ".mediacore"
+            applicationIdSuffix = ".custom"
         }
     }
     flavorDimensions += "version"
