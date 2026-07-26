@@ -71,7 +71,7 @@ class DeviceProfileService
                                 tsDirectPlay = newConfig.tsDirectPlay,
                             )
                     }
-                    this@DeviceProfileService.deviceProfile!!.also { timber.log.Timber.e("DEVICE PROFILE: %s", it) }
+                    this@DeviceProfileService.deviceProfile!!.also { timber.log.Timber.v("Device profile: %s", it) }
                 }
             }
     }
