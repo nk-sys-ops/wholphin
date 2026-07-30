@@ -211,7 +211,12 @@ fun createDeviceProfile(
             Codec.Container.WMV,
             Codec.Container.XVID,
         )
-        containers.add(Codec.Container.TS)
+        // Gated: with ts in the direct play list the client concludes direct play
+        // is viable for live TV even when the server's StreamBuilder returned
+        // PlayMethod=Transcode, then hangs on the resulting request.
+        if (tsDirectPlay) {
+            containers.add(Codec.Container.TS)
+        }
         container(*containers.toTypedArray())
 
         videoCodec(
