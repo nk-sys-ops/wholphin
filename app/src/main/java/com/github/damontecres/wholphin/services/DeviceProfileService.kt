@@ -52,7 +52,7 @@ class DeviceProfileService
                             experimental = appPrefs.experimentalPreferences,
                             jellyfinTenEleven =
                                 serverVersion != null && serverVersion >= ServerVersion(10, 11, 0),
-                            tsDirectPlay = true,
+                            tsDirectPlay = appPrefs.experimentalPreferences.tsDirectPlay,
                         )
                     if (deviceProfile == null || this@DeviceProfileService.configuration != newConfig) {
                         this@DeviceProfileService.configuration = newConfig
