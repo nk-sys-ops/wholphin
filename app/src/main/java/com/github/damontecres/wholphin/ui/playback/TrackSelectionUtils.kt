@@ -156,12 +156,22 @@ object TrackSelectionUtils {
                 // Should be filtered out before calling this though
                 track to listOf(Int.MAX_VALUE, Int.MAX_VALUE)
             } else {
+                // Jellyfin ids are "<source>:<stream>", but on direct play of a raw
+                // container ExoPlayer's own extractor supplies the id instead --
+                // TsExtractor emits "<program>/<pid>", e.g. "1/257". Accept either
+                // separator, and sort anything still unparseable last rather than
+                // throwing: this runs on onTracksChanged, so an exception here kills
+                // the app rather than failing playback.
                 track.trackFormats[0]
                     .id
-                    ?.split(":")
-                    ?.map { it.toInt() }
+                    ?.split(':', '/')
+                    ?.map { it.toIntOrNull() ?: Int.MAX_VALUE }
                     ?.let {
-                        track to it
+                        track to
+                            listOf(
+                                it.getOrElse(0) { Int.MAX_VALUE },
+                                it.getOrElse(1) { Int.MAX_VALUE },
+                            )
                     }
             }
         }.sortedWith(compareBy<Pair<Tracks.Group, List<Int>>> { it.second[0] }.thenBy { it.second[1] })
