@@ -209,7 +209,17 @@ fun DestinationContent(
                     )
                 }
 
-                BaseItemKind.FOLDER -> {
+                // CHANNEL and CHANNEL_FOLDER_ITEM come from plugin-provided
+                // channels rather than a normal library -- the NextPVR plugin
+                // serves its recordings this way. They browse like any other
+                // folder, and the app already classifies them as folder-like
+                // and non-playable elsewhere; only this dispatch was missing
+                // them, so opening NextPVR recordings hit the else branch and
+                // rendered "Unsupported item type: ChannelFolderItem".
+                BaseItemKind.FOLDER,
+                BaseItemKind.CHANNEL,
+                BaseItemKind.CHANNEL_FOLDER_ITEM,
+                -> {
                     LaunchedEffect(Unit) { onClearBackdrop.invoke() }
                     CollectionFolder(
                         preferences = preferences,
