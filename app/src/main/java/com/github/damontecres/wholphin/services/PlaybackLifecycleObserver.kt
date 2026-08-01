@@ -32,8 +32,17 @@ class PlaybackLifecycleObserver
 
         override fun onPause(owner: LifecycleOwner) {
             playerFactory.currentPlayer?.let {
-                wasPlaying = it.isPlaying
-                it.pause()
+                // onResume already guards on isReleased; onPause did not. A
+                // player released while the activity was still foregrounded
+                // left a stale reference here, and the next backgrounding
+                // called pause() on it -- media3 then posted to a dead
+                // internal thread and logged IllegalStateException "sending
+                // message to a Handler on a dead thread". Not fatal, but it
+                // left the UI wedged in a way that reads as a crash.
+                if (!it.isReleased) {
+                    wasPlaying = it.isPlaying
+                    it.pause()
+                }
             }
             themeSongPlayer.stop()
         }
