@@ -465,7 +465,7 @@ class LiveTvViewModel
             programId: UUID,
             series: Boolean,
         ) {
-            viewModelScope.launchIO {
+            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
                 val d by api.liveTvApi.getDefaultTimer(programId.toServerString())
                 if (series) {
                     api.liveTvApi.createSeriesTimer(d)

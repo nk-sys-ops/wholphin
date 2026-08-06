@@ -15,6 +15,14 @@ import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.DeviceInfo
 import kotlin.coroutines.CoroutineContext
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.stateIn
+import org.jellyfin.sdk.api.client.util.ApiSerializer
+import org.jellyfin.sdk.api.sockets.SocketConnectionState
+import timber.log.Timber
+
 /**
  * Wraps [ApiClient.request] with the given [CoroutineContext]
  */
@@ -62,6 +70,31 @@ class CoroutineContextApiClient(
         }
 }
 
+class SafeSocketConnection(
+    private val delegate: SocketConnection,
+    scope: CoroutineScope,
+) : SocketConnection by delegate {
+    override val state: StateFlow<SocketConnectionState> = delegate.state
+        .filter { state ->
+            if (state is SocketConnectionState.Message) {
+                try {
+                    ApiSerializer.decodeSocketMessage(state.message)
+                    true
+                } catch (e: Exception) {
+                    Timber.w(e, "Dropping malformed socket message: %s", state.message)
+                    false
+                }
+            } else {
+                true
+            }
+        }
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = delegate.state.value,
+        )
+}
+
 class CoroutineContextApiClientFactory(
     private val factory: OkHttpFactory,
     private val coroutineContext: CoroutineContext = WholphinDispatchers.IO,
@@ -83,5 +116,5 @@ class CoroutineContextApiClientFactory(
     override fun create(
         clientOptions: HttpClientOptions,
         scope: CoroutineScope,
-    ): SocketConnection = factory.create(clientOptions, scope)
+    ): SocketConnection = SafeSocketConnection(factory.create(clientOptions, scope), scope)
 }
