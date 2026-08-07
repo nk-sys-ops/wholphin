@@ -40,6 +40,7 @@ import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.seasonEpisode
+import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -50,6 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -125,6 +127,42 @@ class DvrScheduleViewModel
                 init()
             }
         }
+
+        /**
+         * Play the in-progress recording file for [program]'s channel instead of tapping the
+         * live channel stream. See the matching function in `LiveTvViewModel` for why this
+         * exists. Re-resolves the recording via the API rather than assuming [program] already
+         * *is* the recording item, since this dialog is shared with the "scheduled" list too.
+         */
+        fun watchRecordingInProgress(program: BaseItem) {
+            val channelId = program.data.channelId
+            if (channelId == null) {
+                Timber.w("watchRecordingInProgress: program ${program.id} has no channelId")
+                return
+            }
+            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                val recordings =
+                    api.liveTvApi
+                        .getRecordings(
+                            GetRecordingsRequest(
+                                channelId = channelId.toServerString(),
+                                isInProgress = true,
+                            ),
+                        ).content
+                val recording = recordings.items.firstOrNull()
+                if (recording?.id != null) {
+                    navigationManager.navigateTo(
+                        Destination.Playback(
+                            itemId = recording.id,
+                            positionMs = 0L,
+                        ),
+                    )
+                } else {
+                    Timber.w("watchRecordingInProgress: no in-progress recording found for channel $channelId")
+                    throw IllegalStateException("Recording is no longer in progress")
+                }
+            }
+        }
     }
 
 data class DvrScheduleState(
@@ -193,6 +231,10 @@ fun DvrSchedule(
                                 ),
                             )
                         }
+                    },
+                    onWatchRecordingInProgress = { program ->
+                        showDialog = null
+                        viewModel.watchRecordingInProgress(program)
                     },
                     onRecord = { _, _ ->
                         // no-op
