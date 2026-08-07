@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.AppColors
+import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisode
 import com.github.damontecres.wholphin.ui.dot
@@ -53,6 +54,7 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.TimerInfoDto
 import org.jellyfin.sdk.model.api.request.GetLiveTvChannelsRequest
+import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
 import org.jellyfin.sdk.model.extensions.ticks
 import timber.log.Timber
 import java.time.LocalDateTime
@@ -497,6 +499,51 @@ class LiveTvViewModel
                 }
                 state.value.let {
                     refreshPrograms(it.channels, it.programs.range)
+                }
+            }
+        }
+
+        /**
+         * Play the in-progress recording file for [program]'s channel instead of tapping the
+         * live channel stream.
+         *
+         * Some Live TV backends (NextPVR's IPTV pass-through, confirmed 2026-08-07) can hand a
+         * concurrent live viewer a corrupted stream when the same channel is actively recording,
+         * because the live tap starts mid-stream with no valid H.264 headers. The growing
+         * recording file itself doesn't have that problem, since it carries the headers captured
+         * when the recording began. This is only ever offered from the dialog when [program]
+         * already has an active timer (`isRecording`), so a recording is known to exist; if the
+         * lookup still comes up empty (e.g. the recording ended in the moment between opening the
+         * dialog and tapping this), fail with a toast rather than silently doing nothing.
+         */
+        fun watchRecordingInProgress(program: BaseItem) {
+            val channelId = program.data.channelId
+            if (channelId == null) {
+                Timber.w("watchRecordingInProgress: program ${program.id} has no channelId")
+                return
+            }
+            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                val recordings =
+                    api.liveTvApi
+                        .getRecordings(
+                            GetRecordingsRequest(
+                                channelId = channelId.toServerString(),
+                                isInProgress = true,
+                            ),
+                        ).content
+                val recording = recordings.items.firstOrNull()
+                if (recording?.id != null) {
+                    navigationManager.navigateTo(
+                        Destination.Playback(
+                            itemId = recording.id,
+                            positionMs = 0L,
+                        ),
+                    )
+                } else {
+                    Timber.w("watchRecordingInProgress: no in-progress recording found for channel $channelId")
+                    throw IllegalStateException(
+                        context.getString(R.string.watch_recording_in_progress_not_found),
+                    )
                 }
             }
         }

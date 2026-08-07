@@ -51,6 +51,7 @@ fun ProgramDialog(
     canRecord: Boolean,
     onDismissRequest: () -> Unit,
     onWatch: (BaseItem) -> Unit,
+    onWatchRecordingInProgress: (BaseItem) -> Unit,
     onRecord: (BaseItem, series: Boolean) -> Unit,
     onCancelRecord: (BaseItem, series: Boolean) -> Unit,
 ) {
@@ -163,6 +164,32 @@ fun ProgramDialog(
                                         Text(
                                             text = stringResource(R.string.watch_live),
                                         )
+                                    }
+                                }
+                                if (isRecording) {
+                                    // A timer is active for this exact program instance, so a
+                                    // growing recording file already exists for it. Some Live TV
+                                    // backends (e.g. NextPVR's IPTV pass-through) can corrupt a
+                                    // concurrent live tap of a channel that's currently recording,
+                                    // since the tap starts mid-stream with no valid H.264 headers.
+                                    // Watching the recording file instead avoids that entirely, as
+                                    // it carries the headers captured when the recording started.
+                                    TextButton(
+                                        onClick = { onWatchRecordingInProgress.invoke(item) },
+                                        modifier = Modifier,
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.watch_recording_in_progress),
+                                            )
+                                        }
                                     }
                                 }
                             }

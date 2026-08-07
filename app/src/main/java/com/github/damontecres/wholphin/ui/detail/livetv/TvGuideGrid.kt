@@ -220,6 +220,10 @@ fun TvGuideGrid(
                             )
                         }
                     },
+                    onWatchRecordingInProgress = {
+                        onDismissRequest.invoke()
+                        viewModel.watchRecordingInProgress(it)
+                    },
                     onRecord = { program, series ->
                         viewModel.record(
                             programId = program.id,
