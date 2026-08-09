@@ -51,7 +51,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
+import org.jellyfin.sdk.model.serializer.toUUID
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -90,12 +93,33 @@ class DvrScheduleViewModel
                                 isScheduled = true,
                             ).content.items
                             .map {
+                                // Timers created by channel+time range (this household's own
+                                // sports-dvr-auto scheduler and the dashboard "Record" button
+                                // both do this deliberately) are never linked to an EPG
+                                // ProgramId, so programInfo is null -- confirmed live, not
+                                // hypothetical. Force-unwrapping it here used to crash the
+                                // whole screen for every timer, not just this one. Fall back to
+                                // a minimal synthetic item built from the Timer's own fields so
+                                // these still show up instead of being dropped or crashing.
                                 BaseItem.from(
-                                    it.programInfo!!,
+                                    it.programInfo ?: BaseItemDto(
+                                        id = it.id?.toUUID()
+                                            ?: java.util.UUID.randomUUID(),
+                                        name = it.name,
+                                        channelId = it.channelId,
+                                        startDate = it.startDate,
+                                        endDate = it.endDate,
+                                        type = BaseItemKind.RECORDING,
+                                        // Without this, ProgramDialog's isRecording check
+                                        // (dto.timerId.isNotNullOrBlank()) can't tell this is
+                                        // already scheduled and offers "Record Program" again
+                                        // instead of "Cancel Recording".
+                                        timerId = it.id,
+                                    ),
                                     api,
                                     true,
                                 )
-                            } // TODO this probably breaks for time based recordings
+                            }
                             .groupBy {
                                 it.data.startDate!!.toLocalDate()
                             }
