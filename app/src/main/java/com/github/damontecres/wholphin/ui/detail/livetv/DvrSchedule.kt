@@ -159,33 +159,22 @@ class DvrScheduleViewModel
          * *is* the recording item, since this dialog is shared with the "scheduled" list too.
          */
         fun watchRecordingInProgress(program: BaseItem) {
-            val channelId = program.data.channelId
-            if (channelId == null) {
-                Timber.w("watchRecordingInProgress: program ${program.id} has no channelId")
-                return
-            }
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                val recordings =
-                    api.liveTvApi
-                        .getRecordings(
-                            GetRecordingsRequest(
-                                channelId = channelId.toServerString(),
-                                isInProgress = true,
-                            ),
-                        ).content
-                val recording = recordings.items.firstOrNull()
-                if (recording?.id != null) {
-                    navigationManager.navigateTo(
-                        Destination.Playback(
-                            itemId = recording.id,
-                            positionMs = 0L,
-                        ),
-                    )
-                } else {
-                    Timber.w("watchRecordingInProgress: no in-progress recording found for channel $channelId")
-                    throw IllegalStateException("Recording is no longer in progress")
-                }
-            }
+            // Unlike LiveTvViewModel's version of this (called from the Guide's program
+            // dialog, where the clicked item is a Program and the actual Recording still
+            // needs to be looked up by channel), this is always called on an item that IS
+            // already the real Recording -- it came straight from DvrScheduleViewModel's own
+            // "active" list, populated via getRecordings(isInProgress = true). Re-querying
+            // /LiveTv/Recordings by channel here was both redundant and broken: that endpoint
+            // does not reliably return a genuinely InProgress recording when filtered by
+            // channel (confirmed live -- a timer showing Status: InProgress with a real
+            // ChannelId still came back empty), so this silently did nothing. Just navigate
+            // directly using the item we already have.
+            navigationManager.navigateTo(
+                Destination.Playback(
+                    itemId = program.id,
+                    positionMs = 0L,
+                ),
+            )
         }
     }
 

@@ -148,7 +148,11 @@ fun ProgramDialog(
                                     .padding(top = 8.dp)
                                     .fillMaxWidth(),
                         ) {
-                            if (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!)) {
+                            // Same reasoning as the isRecording override below: an item that's
+                            // genuinely still recording (isRecording) can legitimately run past
+                            // its originally-scheduled endDate, and should still offer Watch
+                            // Live / Watch recording in progress in that case.
+                            if (isRecording || (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!))) {
                                 TextButton(
                                     onClick = { onWatch.invoke(item) },
                                     modifier = Modifier,
@@ -247,8 +251,15 @@ fun ProgramDialog(
                                             }
                                         }
                                     }
-                                    if (dto.endDate?.isAfter(LocalDateTime.now()) ?: true) {
-                                        // Only show program specific recording button if it hasn't finished yet
+                                    if (isRecording || dto.endDate?.isAfter(LocalDateTime.now()) ?: true) {
+                                        // Only show program specific recording button if it hasn't
+                                        // finished yet -- UNLESS it's already recording (isRecording),
+                                        // in which case always offer Cancel regardless of the
+                                        // originally-scheduled endDate. An item only reaches this
+                                        // dialog via "Active Recordings" when it's genuinely still
+                                        // InProgress server-side, which can legitimately run past its
+                                        // original endDate (e.g. an overrun or stall) -- exactly the
+                                        // situation where the user most needs to be able to cancel it.
                                         item {
                                             TextButton(
                                                 onClick = {
