@@ -413,6 +413,14 @@ class CollectionFolderViewModel
                 filter.applyTo(
                     GetItemsRequest(
                         parentId = item?.id,
+                        // The LiveTV "Recordings" folder (CollectionType == null, unlike every
+                        // typed library such as movies/tvshows) triggers a pathologically slow
+                        // server-side recursive UserData/GetUnplayedItemCount evaluation when
+                        // Recursive=true -- confirmed 40s+ vs 16ms with this off, against a
+                        // library with 550k+ total items. Scoped to collectionType == null only
+                        // so normal libraries keep their watched/favorite indicators.
+                        enableUserData =
+                            if (item?.data?.collectionType == null) false else null,
                         enableImageTypes =
                             listOf(
                                 ImageType.PRIMARY,
