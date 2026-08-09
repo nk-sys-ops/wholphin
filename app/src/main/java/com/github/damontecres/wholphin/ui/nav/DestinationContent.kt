@@ -162,8 +162,15 @@ fun DestinationContent(
 
                 BaseItemKind.VIDEO,
                 BaseItemKind.MUSIC_VIDEO,
+                BaseItemKind.RECORDING,
                 -> {
                     // TODO Use VideoDetails
+                    // A Recording (finished or still in progress) behaves the same as any
+                    // other playable video here -- MovieDetails' own Play button already
+                    // routes through Destination.Playback -> PlaybackViewModel, which already
+                    // correctly detects and handles the in-progress case (isInProgressRecording,
+                    // fixed today). Previously this type had no case at all and fell through to
+                    // the `else` branch below, showing "Unsupported item type: Recording".
                     MovieDetails(
                         preferences,
                         destination,
