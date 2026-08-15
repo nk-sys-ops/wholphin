@@ -612,8 +612,8 @@ class PlaybackViewModel
                 )
 
                 val maxBitrate =
-                    preferences.appPreferences.playbackPreferences.maxBitrate
-                        .takeIf { it > 0 } ?: AppPreference.DEFAULT_BITRATE
+                    preferences.appPreferences.playbackPreferences.maxBitrate.takeIf { it > 0 }
+                        ?: com.github.damontecres.wholphin.preferences.AppPreference.DEFAULT_BITRATE
                 val response by
                     api.mediaInfoApi
                         .getPostedPlaybackInfo(
