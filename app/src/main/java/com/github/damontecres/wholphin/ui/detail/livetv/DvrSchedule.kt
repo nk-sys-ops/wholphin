@@ -91,11 +91,12 @@ class DvrScheduleViewModel
                             ).content.items
                             .map {
                                 BaseItem.from(
-                                    it.programInfo!!,
+                                    it,
                                     api,
                                     true,
                                 )
-                            } // TODO this probably breaks for time based recordings
+                            }
+                            .filter { it.data.startDate != null }
                             .groupBy {
                                 it.data.startDate!!.toLocalDate()
                             }
@@ -376,20 +377,24 @@ fun Recording(
             }
         },
         trailingContent = {
-            val time =
-                DateUtils.formatDateRange(
-                    context,
-                    item.data.startDate!!
-                        .toInstant(OffsetDateTime.now().offset)
-                        .epochSecond * 1000,
-                    item.data.endDate!!
-                        .toInstant(OffsetDateTime.now().offset)
-                        .epochSecond * 1000,
-                    DateUtils.FORMAT_SHOW_TIME,
+            val start = item.data.startDate
+            val end = item.data.endDate
+            if (start != null && end != null) {
+                val time =
+                    DateUtils.formatDateRange(
+                        context,
+                        start
+                            .toInstant(OffsetDateTime.now().offset)
+                            .epochSecond * 1000,
+                        end
+                            .toInstant(OffsetDateTime.now().offset)
+                            .epochSecond * 1000,
+                        DateUtils.FORMAT_SHOW_TIME,
+                    )
+                Text(
+                    text = time,
                 )
-            Text(
-                text = time,
-            )
+            }
         },
     )
 }

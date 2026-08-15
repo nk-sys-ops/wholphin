@@ -113,24 +113,28 @@ fun ProgramDialog(
                                     )
                                 }
                         }
-                        val time =
-                            DateUtils.formatDateRange(
-                                context,
-                                dto.startDate!!
-                                    .atZone(ZoneId.systemDefault())
-                                    .toInstant()
-                                    .epochSecond * 1000,
-                                dto.endDate!!
-                                    .atZone(ZoneId.systemDefault())
-                                    .toInstant()
-                                    .epochSecond * 1000,
-                                DateUtils.FORMAT_SHOW_TIME,
+                        val start = dto.startDate
+                        val end = dto.endDate
+                        if (start != null && end != null) {
+                            val time =
+                                DateUtils.formatDateRange(
+                                    context,
+                                    start
+                                        .atZone(ZoneId.systemDefault())
+                                        .toInstant()
+                                        .epochSecond * 1000,
+                                    end
+                                        .atZone(ZoneId.systemDefault())
+                                        .toInstant()
+                                        .epochSecond * 1000,
+                                    DateUtils.FORMAT_SHOW_TIME,
+                                )
+                            Text(
+                                text = time,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.titleSmall,
                             )
-                        Text(
-                            text = time,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
+                        }
                         dto.overview?.let { overview ->
                             Text(
                                 text = overview,
@@ -148,7 +152,7 @@ fun ProgramDialog(
                                     .padding(top = 8.dp)
                                     .fillMaxWidth(),
                         ) {
-                            if (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!)) {
+                            if (start != null && end != null && now.isAfter(start) && now.isBefore(end)) {
                                 TextButton(
                                     onClick = { onWatch.invoke(item) },
                                     modifier = Modifier,
