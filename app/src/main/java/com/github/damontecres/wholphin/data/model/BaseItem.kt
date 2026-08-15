@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDateTime
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.getDateFormatter
+import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.joinNotBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.playable
@@ -30,7 +31,9 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.TimerInfoDto
 import org.jellyfin.sdk.model.extensions.ticks
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import java.util.Locale
 import java.util.UUID
 import kotlin.time.Duration
@@ -272,6 +275,22 @@ data class BaseItem(
                     }
                 }
 
+                BaseItemKind.RECORDING -> {
+                    if (isInProgressRecording) {
+                        data.channelId?.let { channelId ->
+                            Destination.Playback(
+                                itemId = channelId,
+                                positionMs = 0L,
+                            )
+                        } ?: Destination.Playback(
+                            itemId = id,
+                            positionMs = 0L,
+                        )
+                    } else {
+                        Destination.MediaItem(this)
+                    }
+                }
+
                 else -> {
                     Destination.MediaItem(this)
                 }
@@ -290,6 +309,35 @@ data class BaseItem(
                 dto,
                 useSeriesForPrimary,
             )
+
+        fun from(
+            timer: TimerInfoDto,
+            api: ApiClient,
+            useSeriesForPrimary: Boolean = false,
+        ): BaseItem {
+            val dto = timer.programInfo?.let { p ->
+                p.copy(
+                    timerId = p.timerId ?: timer.id,
+                    seriesTimerId = p.seriesTimerId ?: timer.seriesTimerId,
+                )
+            } ?: BaseItemDto(
+                id = timer.id?.toUUIDOrNull() ?: timer.programId?.toUUIDOrNull() ?: UUID.randomUUID(),
+                name = timer.name,
+                channelId = timer.channelId,
+                channelName = timer.channelName,
+                channelPrimaryImageTag = timer.channelPrimaryImageTag,
+                startDate = timer.startDate,
+                endDate = timer.endDate,
+                overview = timer.overview,
+                seriesTimerId = timer.seriesTimerId,
+                timerId = timer.id,
+                runTimeTicks = timer.runTimeTicks,
+                type = BaseItemKind.PROGRAM,
+                isSeries = timer.seriesTimerId != null,
+                serverId = timer.serverId,
+            )
+            return BaseItem(dto, useSeriesForPrimary)
+        }
     }
 }
 
@@ -370,3 +418,9 @@ fun createStudioDestination(
 )
 
 val BaseItem.studioNames get() = data.studios?.mapNotNull { it.name }.orEmpty()
+
+val BaseItem.isInProgressRecording: Boolean
+    get() = data.status?.equals("InProgress", ignoreCase = true) == true ||
+        data.timerId.isNotNullOrBlank() ||
+        (type == BaseItemKind.RECORDING && data.runTimeTicks == null)
+
