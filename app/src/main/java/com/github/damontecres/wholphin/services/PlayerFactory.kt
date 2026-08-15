@@ -94,8 +94,7 @@ class PlayerFactory
                         // (proto3 bools default to false) forced the TsExtractor flags ON
                         // while every toggle in the UI read OFF — flags applied to every
                         // channel with no way to see or disable it.
-                        val iptvRecovery =
-                            appPreferences.experimentalPreferences.iptvAudioRecoveryEnabled
+                        val iptvRecovery = true
                         Timber.v(
                             "extensions=%s, assPlaybackMode=%s",
                             extensions,
