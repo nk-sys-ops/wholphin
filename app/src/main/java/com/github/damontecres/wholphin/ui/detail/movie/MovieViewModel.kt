@@ -58,7 +58,7 @@ class MovieViewModel
         private val api: ApiClient,
         private val seerrService: SeerrService,
         @param:ApplicationContext private val context: Context,
-        private val navigationManager: NavigationManager,
+        val navigationManager: NavigationManager,
         val serverRepository: ServerRepository,
         val itemPlaybackRepository: ItemPlaybackRepository,
         val streamChoiceService: StreamChoiceService,

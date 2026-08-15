@@ -33,6 +33,7 @@ import com.github.damontecres.wholphin.ui.detail.discover.DiscoverPersonPage
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverSeriesDetails
 import com.github.damontecres.wholphin.ui.detail.episode.EpisodeDetails
 import com.github.damontecres.wholphin.ui.detail.movie.MovieDetails
+import com.github.damontecres.wholphin.ui.detail.recording.RecordingDetails
 import com.github.damontecres.wholphin.ui.detail.music.AlbumDetailsPage
 import com.github.damontecres.wholphin.ui.detail.music.ArtistDetailsPage
 import com.github.damontecres.wholphin.ui.detail.music.NowPlayingPage
@@ -276,6 +277,14 @@ fun DestinationContent(
                     ArtistDetailsPage(
                         preferences = preferences,
                         itemId = destination.itemId,
+                        modifier = modifier,
+                    )
+                }
+
+                BaseItemKind.RECORDING -> {
+                    RecordingDetails(
+                        preferences = preferences,
+                        destination = destination,
                         modifier = modifier,
                     )
                 }
