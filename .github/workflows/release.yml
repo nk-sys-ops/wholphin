@@ -33,9 +33,17 @@ jobs:
           KEY_PASSWORD: "${{ secrets.KEY_PASSWORD }}"
           KEY_STORE_PASSWORD: "${{ secrets.KEY_STORE_PASSWORD }}"
           SIGNING_KEY: "${{ secrets.SIGNING_KEY }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsUsername: "${{ secrets.EXTENSIONS_USERNAME }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsPassword: "${{ secrets.EXTENSIONS_PASSWORD }}"
+          EXTENSIONS_USERNAME: "${{ secrets.EXTENSIONS_USERNAME }}"
+          EXTENSIONS_PASSWORD: "${{ secrets.EXTENSIONS_PASSWORD }}"
         run: |
+          # See main.yml for why these aren't exported directly in `env:` above --
+          # an empty-but-set var still makes Gradle's hasProperty() return true and
+          # sends the build hunting for extensions-repo artifacts that don't exist
+          # without real credentials.
+          if [ -n "$EXTENSIONS_USERNAME" ]; then
+            export ORG_GRADLE_PROJECT_WholphinExtensionsUsername="$EXTENSIONS_USERNAME"
+            export ORG_GRADLE_PROJECT_WholphinExtensionsPassword="$EXTENSIONS_PASSWORD"
+          fi
           ./gradlew clean bundleAppstoreRelease bundleFiretvRelease
           ./gradlew assembleDefaultRelease
       - name: Verify signatures
