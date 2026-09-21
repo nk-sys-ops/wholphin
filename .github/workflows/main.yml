@@ -44,7 +44,7 @@ jobs:
           echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
           echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
-      - name: Build release app
+      - name: Build app
         id: build
         env:
           KEY_ALIAS: "${{ secrets.KEY_ALIAS }}"
@@ -54,7 +54,16 @@ jobs:
           ORG_GRADLE_PROJECT_WholphinExtensionsUsername: "${{ secrets.EXTENSIONS_USERNAME }}"
           ORG_GRADLE_PROJECT_WholphinExtensionsPassword: "${{ secrets.EXTENSIONS_PASSWORD }}"
         run: |
-          ./gradlew clean assembleDefaultRelease assembleDefaultDebug --no-daemon
+          # This fork has no release-signing or extensions-repo credentials configured
+          # (household builds+sideloads locally instead), so only build the debug
+          # variant here -- assembleDefaultRelease needs KEY_ALIAS/SIGNING_KEY/etc.
+          # and fails every run without them. Release build re-enables itself
+          # automatically once those secrets are actually set on the repo.
+          if [ -n "$SIGNING_KEY" ]; then
+            ./gradlew clean assembleDefaultRelease assembleDefaultDebug --no-daemon
+          else
+            ./gradlew clean assembleDefaultDebug --no-daemon
+          fi
 
       - name: Verify signatures
         run: |
