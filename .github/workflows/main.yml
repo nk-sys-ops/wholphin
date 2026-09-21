@@ -51,14 +51,23 @@ jobs:
           KEY_PASSWORD: "${{ secrets.KEY_PASSWORD }}"
           KEY_STORE_PASSWORD: "${{ secrets.KEY_STORE_PASSWORD }}"
           SIGNING_KEY: "${{ secrets.SIGNING_KEY }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsUsername: "${{ secrets.EXTENSIONS_USERNAME }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsPassword: "${{ secrets.EXTENSIONS_PASSWORD }}"
+          EXTENSIONS_USERNAME: "${{ secrets.EXTENSIONS_USERNAME }}"
+          EXTENSIONS_PASSWORD: "${{ secrets.EXTENSIONS_PASSWORD }}"
         run: |
           # This fork has no release-signing or extensions-repo credentials configured
-          # (household builds+sideloads locally instead), so only build the debug
-          # variant here -- assembleDefaultRelease needs KEY_ALIAS/SIGNING_KEY/etc.
-          # and fails every run without them. Release build re-enables itself
-          # automatically once those secrets are actually set on the repo.
+          # (household builds+sideloads locally instead). Both gates below re-enable
+          # themselves automatically once the corresponding secrets are actually set.
+          #
+          # Deliberately NOT exported as ORG_GRADLE_PROJECT_WholphinExtensions* directly
+          # in this step's `env:` -- an empty-but-set env var still makes Gradle's
+          # project.hasProperty("WholphinExtensionsUsername") return true, which wrongly
+          # tells app/build.gradle.kts the private extensions Maven repo is configured
+          # and sends it hunting for decoder-ffmpeg/decoder-av1/wholphin-mpv artifacts
+          # that don't exist without real credentials -- only export them when non-empty.
+          if [ -n "$EXTENSIONS_USERNAME" ]; then
+            export ORG_GRADLE_PROJECT_WholphinExtensionsUsername="$EXTENSIONS_USERNAME"
+            export ORG_GRADLE_PROJECT_WholphinExtensionsPassword="$EXTENSIONS_PASSWORD"
+          fi
           if [ -n "$SIGNING_KEY" ]; then
             ./gradlew clean assembleDefaultRelease assembleDefaultDebug --no-daemon
           else
