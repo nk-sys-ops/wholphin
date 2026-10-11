@@ -176,13 +176,16 @@ class MediaCodecCapabilitiesTest(
         )
 
     private fun getAVCLevel(profile: Int): Int {
-        val level = getDecoderLevel(MediaFormat.MIMETYPE_VIDEO_AVC, profile)
+        var level = getDecoderLevel(MediaFormat.MIMETYPE_VIDEO_AVC, profile)
+        if (level == 0) {
+            level = getDecoderMaxLevel(MediaFormat.MIMETYPE_VIDEO_AVC)
+        }
 
         return avcLevels
             .asReversed()
             .find { item ->
                 level >= item.first
-            }?.second ?: 0
+            }?.second ?: 52
     }
 
     fun supportsHevc(): Boolean = hasCodecForMime(MediaFormat.MIMETYPE_VIDEO_HEVC)
@@ -236,13 +239,30 @@ class MediaCodecCapabilitiesTest(
         )
 
     private fun getHevcLevel(profile: Int): Int {
-        val level = getDecoderLevel(MediaFormat.MIMETYPE_VIDEO_HEVC, profile)
+        var level = getDecoderLevel(MediaFormat.MIMETYPE_VIDEO_HEVC, profile)
+        if (level == 0) {
+            level = getDecoderMaxLevel(MediaFormat.MIMETYPE_VIDEO_HEVC)
+        }
 
         return hevcLevels
             .asReversed()
             .find { item ->
                 level >= item.first
-            }?.second ?: 0
+            }?.second ?: 183
+    }
+
+    private fun getDecoderMaxLevel(mime: String): Int {
+        var maxLevel = 0
+        for (info in mediaCodecList.codecInfos) {
+            if (info.isEncoder) continue
+            try {
+                val capabilities = info.getCapabilitiesForType(mime)
+                for (profileLevel in capabilities.profileLevels) {
+                    maxLevel = maxOf(maxLevel, profileLevel.level)
+                }
+            } catch (_: IllegalArgumentException) {}
+        }
+        return maxLevel
     }
 
     fun supportsVc1(): Boolean = hasCodecForMime(MimeTypes.VIDEO_VC1)
