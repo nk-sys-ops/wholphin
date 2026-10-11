@@ -186,6 +186,11 @@ class AppPreferencesSerializer
                                 disableAudioOffload = ExperimentalPreference.DisableAudioOffload.defaultValue
                                 preferDolbyVisionOverHdr10Plus =
                                     ExperimentalPreference.PreferDolbyVisionOverHdr10Plus.defaultValue
+                                // Carries the Live TV AAC fix (AacAwareHlsExtractorFactory),
+                                // which affected channels need to have any audio at all.
+                                // Must be set here: this assignment replaces the whole
+                                // message, so setting it elsewhere is silently discarded.
+                                iptvAudioRecoveryEnabled = true
                             }.build()
                 }.build()
 

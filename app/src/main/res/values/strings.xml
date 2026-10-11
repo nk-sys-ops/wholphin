@@ -173,7 +173,9 @@
     <string name="video_scale">Video Scale</string>
     <string name="video">Video</string>
     <string name="videos">Videos</string>
-    <string name="watch_live">Watch live</string>g
+    <string name="watch_live">Watch live</string>
+    <string name="watch_recording_in_progress">Watch recording in progress</string>
+    <string name="watch_recording_in_progress_not_found">Recording is no longer in progress</string>
     <plurals name="years_old">
         <item quantity="zero">%1$d years old</item>
         <item quantity="one">%1$d year old</item>
@@ -951,4 +953,8 @@
         <item quantity="one">%1$d Episode</item>
         <item quantity="other">%1$d Episodes</item>
     </plurals>
+    <string name="iptv_audio_recovery">IPTV Audio Track Recovery</string>
+    <string name="iptv_audio_recovery_summary">Auto-select fallback audio streams and apply TiviMate-grade TsExtractor flags on IPTV feeds</string>
+    <string name="ts_direct_play">Direct Play TS</string>
+    <string name="ts_direct_play_summary">Direct play MPEG-TS streams instead of forcing HLS transcoding</string>
 </resources>
