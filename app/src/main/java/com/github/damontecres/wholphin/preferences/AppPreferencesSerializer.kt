@@ -184,6 +184,11 @@ class AppPreferencesSerializer
                                 videoTunnelingEnabled = false
                                 preferAc3Surround = ExperimentalPreference.PreferAc3ForSurround.defaultValue
                                 disableAudioOffload = ExperimentalPreference.DisableAudioOffload.defaultValue
+                                // Carries the Live TV AAC fix (AacAwareHlsExtractorFactory),
+                                // which affected channels need to have any audio at all.
+                                // Must be set here: this assignment replaces the whole
+                                // message, so setting it elsewhere is silently discarded.
+                                iptvAudioRecoveryEnabled = true
                             }.build()
                 }.build()
 

@@ -228,6 +228,8 @@ message ExperimentalPreferences {
   bool video_tunneling_enabled = 2;
   bool prefer_ac3_surround = 3;
   bool disable_audio_offload = 4;
+  bool iptv_audio_recovery_enabled = 5;
+  bool ts_direct_play = 6;
 }
 
 message AppPreferences {

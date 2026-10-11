@@ -71,6 +71,32 @@ object ExperimentalPreference {
             },
             summary = R.string.disable_audio_offload_summary,
         )
+
+    val IptvAudioRecovery =
+        AppSwitchPreference<AppPreferences>(
+            title = R.string.iptv_audio_recovery,
+            defaultValue = true,
+            getter = { it.experimentalPreferences.iptvAudioRecoveryEnabled },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { iptvAudioRecoveryEnabled = value }
+            },
+            summaryOn = R.string.enabled,
+            summaryOff = R.string.disabled,
+            summary = R.string.iptv_audio_recovery_summary,
+        )
+
+    val TsDirectPlay =
+        AppSwitchPreference<AppPreferences>(
+            title = R.string.ts_direct_play,
+            defaultValue = false, // Default to FALSE to force HLS in the experiment
+            getter = { it.experimentalPreferences.tsDirectPlay },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { tsDirectPlay = value }
+            },
+            summaryOn = R.string.enabled,
+            summaryOff = R.string.disabled,
+            summary = R.string.ts_direct_play_summary,
+        )
 }
 
 val experimentalPreferences =
@@ -81,8 +107,10 @@ val experimentalPreferences =
                 preferences =
                     listOf(
                         ExperimentalPreference.VideoTunneling,
+                        ExperimentalPreference.IptvAudioRecovery,
                         ExperimentalPreference.PreferAc3ForSurround,
                         ExperimentalPreference.DisableAudioOffload,
+                        ExperimentalPreference.TsDirectPlay,
                     ),
             ),
         )
