@@ -51,6 +51,7 @@ fun ProgramDialog(
     canRecord: Boolean,
     onDismissRequest: () -> Unit,
     onWatch: (BaseItem) -> Unit,
+    onWatchRecordingInProgress: (BaseItem) -> Unit,
     onRecord: (BaseItem, series: Boolean) -> Unit,
     onCancelRecord: (BaseItem, series: Boolean) -> Unit,
 ) {
@@ -147,7 +148,11 @@ fun ProgramDialog(
                                     .padding(top = 8.dp)
                                     .fillMaxWidth(),
                         ) {
-                            if (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!)) {
+                            // Same reasoning as the isRecording override below: an item that's
+                            // genuinely still recording (isRecording) can legitimately run past
+                            // its originally-scheduled endDate, and should still offer Watch
+                            // Live / Watch recording in progress in that case.
+                            if (isRecording || (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!))) {
                                 TextButton(
                                     onClick = { onWatch.invoke(item) },
                                     modifier = Modifier,
@@ -165,6 +170,32 @@ fun ProgramDialog(
                                         )
                                     }
                                 }
+                                if (isRecording) {
+                                    // A timer is active for this exact program instance, so a
+                                    // growing recording file already exists for it. Some Live TV
+                                    // backends (e.g. NextPVR's IPTV pass-through) can corrupt a
+                                    // concurrent live tap of a channel that's currently recording,
+                                    // since the tap starts mid-stream with no valid H.264 headers.
+                                    // Watching the recording file instead avoids that entirely, as
+                                    // it carries the headers captured when the recording started.
+                                    TextButton(
+                                        onClick = { onWatchRecordingInProgress.invoke(item) },
+                                        modifier = Modifier,
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.watch_recording_in_progress),
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             if (canRecord) {
                                 val recordFocusRequester = remember { FocusRequester() }
@@ -178,7 +209,7 @@ fun ProgramDialog(
                                         Modifier
                                             .fillMaxWidth()
                                             .focusRestorer(recordFocusRequester),
-                                ) {
+                                 ) {
                                     if (dto.isSeries ?: false) {
                                         item {
                                             TextButton(
@@ -220,8 +251,15 @@ fun ProgramDialog(
                                             }
                                         }
                                     }
-                                    if (dto.endDate?.isAfter(LocalDateTime.now()) ?: true) {
-                                        // Only show program specific recording button if it hasn't finished yet
+                                    if (isRecording || dto.endDate?.isAfter(LocalDateTime.now()) ?: true) {
+                                        // Only show program specific recording button if it hasn't
+                                        // finished yet -- UNLESS it's already recording (isRecording),
+                                        // in which case always offer Cancel regardless of the
+                                        // originally-scheduled endDate. An item only reaches this
+                                        // dialog via "Active Recordings" when it's genuinely still
+                                        // InProgress server-side, which can legitimately run past its
+                                        // original endDate (e.g. an overrun or stall) -- exactly the
+                                        // situation where the user most needs to be able to cancel it.
                                         item {
                                             TextButton(
                                                 onClick = {

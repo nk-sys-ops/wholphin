@@ -89,12 +89,33 @@ class DvrScheduleViewModel
                                 isScheduled = true,
                             ).content.items
                             .map {
+                                // Timers created by channel+time range (this household's own
+                                // sports-dvr-auto scheduler and the dashboard "Record" button
+                                // both do this deliberately) are never linked to an EPG
+                                // ProgramId, so programInfo is null -- confirmed live, not
+                                // hypothetical. Force-unwrapping it here used to crash the
+                                // whole screen for every timer, not just this one. Fall back to
+                                // a minimal synthetic item built from the Timer's own fields so
+                                // these still show up instead of being dropped or crashing.
                                 BaseItem.from(
-                                    it.programInfo!!,
+                                    it.programInfo ?: org.jellyfin.sdk.model.api.BaseItemDto(
+                                        id = it.id?.let { idStr -> org.jellyfin.sdk.model.serializer.toUUID(idStr) }
+                                            ?: java.util.UUID.randomUUID(),
+                                        name = it.name,
+                                        channelId = it.channelId,
+                                        startDate = it.startDate,
+                                        endDate = it.endDate,
+                                        type = org.jellyfin.sdk.model.api.BaseItemKind.RECORDING,
+                                        // Without this, ProgramDialog's isRecording check
+                                        // (dto.timerId.isNotNullOrBlank()) can't tell this is
+                                        // already scheduled and offers "Record Program" again
+                                        // instead of "Cancel Recording".
+                                        timerId = it.id,
+                                    ),
                                     api,
                                     true,
                                 )
-                            } // TODO this probably breaks for time based recordings
+                            }
                             .groupBy {
                                 it.data.startDate!!.toLocalDate()
                             }
@@ -125,6 +146,31 @@ class DvrScheduleViewModel
                 }
                 init()
             }
+        }
+
+        /**
+         * Play the in-progress recording file for [program]'s channel instead of tapping the
+         * live channel stream. See the matching function in `LiveTvViewModel` for why this
+         * exists. Re-resolves the recording via the API rather than assuming [program] already
+         * *is* the recording item, since this dialog is shared with the "scheduled" list too.
+         */
+        fun watchRecordingInProgress(program: BaseItem) {
+            // Unlike LiveTvViewModel's version of this (called from the Guide's program
+            // dialog, where the clicked item is a Program and the actual Recording still
+            // needs to be looked up by channel), this is always called on an item that IS
+            // already the real Recording -- it came straight from DvrScheduleViewModel's own
+            // "active" list, populated via getRecordings(isInProgress = true). Re-querying
+            // /LiveTv/Recordings by channel here was both redundant and broken: that endpoint
+            // does not reliably return a genuinely InProgress recording when filtered by
+            // channel (confirmed live -- a timer showing Status: InProgress with a real
+            // ChannelId still came back empty), so this silently did nothing. Just navigate
+            // directly using the item we already have.
+            navigationManager.navigateTo(
+                Destination.Playback(
+                    itemId = program.id,
+                    positionMs = 0L,
+                ),
+            )
         }
     }
 
@@ -200,6 +246,10 @@ fun DvrSchedule(
                                 .makeText(context, "Program has no channel ID", Toast.LENGTH_LONG)
                                 .show()
                         }
+                    },
+                    onWatchRecordingInProgress = { program ->
+                        showDialog = null
+                        viewModel.watchRecordingInProgress(program)
                     },
                     onRecord = { _, _ ->
                         // no-op

@@ -483,6 +483,51 @@ class LiveTvViewModel
             }
         }
 
+        /**
+         * Play the in-progress recording file for [program]'s channel instead of tapping the
+         * live channel stream.
+         *
+         * Some Live TV backends (e.g. NextPVR's IPTV pass-through) can corrupt a concurrent
+         * live tap of a channel that is currently being recorded, because the tap begins
+         * mid-stream without valid H.264 stream headers. Playing the recording file avoids
+         * that because it begins with the clean SPS/PPS headers captured when the recording began.
+         * This is only ever offered from the dialog when [program] already has an active timer
+         * (`isRecording`), so a recording is known to exist; if the lookup still comes up empty
+         * (e.g. the recording ended in the moment between opening the dialog and tapping this),
+         * fail with a toast rather than silently doing nothing.
+         */
+        fun watchRecordingInProgress(program: BaseItem) {
+            val channelId = program.data.channelId
+            if (channelId == null) {
+                Timber.w("watchRecordingInProgress: program ${program.id} has no channelId")
+                return
+            }
+            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                val recordings =
+                    api.liveTvApi
+                        .getRecordings(
+                            org.jellyfin.sdk.model.api.request.GetRecordingsRequest(
+                                channelId = com.github.damontecres.wholphin.ui.toServerString(channelId),
+                                isInProgress = true,
+                            ),
+                        ).content
+                val recording = recordings.items.firstOrNull()
+                if (recording?.id != null) {
+                    navigationManager.navigateTo(
+                        com.github.damontecres.wholphin.ui.nav.Destination.Playback(
+                            itemId = recording.id,
+                            positionMs = 0L,
+                        ),
+                    )
+                } else {
+                    Timber.w("watchRecordingInProgress: no in-progress recording found for channel $channelId")
+                    throw IllegalStateException(
+                        context.getString(R.string.watch_recording_in_progress_not_found),
+                    )
+                }
+            }
+        }
+
         private var focusLoadingJob: Job? = null
 
         /**
