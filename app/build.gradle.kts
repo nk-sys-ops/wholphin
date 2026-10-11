@@ -128,7 +128,9 @@ configure<ApplicationExtension> {
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            // Distinct id so this build installs alongside an upstream Wholphin
+            // without clashing, and without carrying "debug" in the user-visible name.
+            applicationIdSuffix = ".custom"
         }
     }
     flavorDimensions += "version"
