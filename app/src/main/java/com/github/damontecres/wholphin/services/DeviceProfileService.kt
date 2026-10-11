@@ -50,6 +50,7 @@ class DeviceProfileService
                             experimental = appPrefs.experimentalPreferences,
                             jellyfinTenEleven =
                                 serverVersion != null && serverVersion >= ServerVersion(10, 11, 0),
+                            tsDirectPlay = appPrefs.experimentalPreferences.enabled { tsDirectPlay },
                         )
                     if (deviceProfile == null || this@DeviceProfileService.configuration != newConfig) {
                         this@DeviceProfileService.configuration = newConfig
@@ -66,9 +67,10 @@ class DeviceProfileService
                                 preferAc3ForSurround = appPrefs.experimentalPreferences.enabled { preferAc3Surround },
                                 jellyfinTenEleven = newConfig.jellyfinTenEleven,
                                 maxResolution = newConfig.overrides.maxResolution,
+                                tsDirectPlay = newConfig.tsDirectPlay,
                             )
                     }
-                    this@DeviceProfileService.deviceProfile!!
+                    this@DeviceProfileService.deviceProfile!!.also { timber.log.Timber.v("Device profile: %s", it) }
                 }
             }
     }
@@ -81,4 +83,5 @@ data class DeviceProfileConfiguration(
     val overrides: PlaybackOverrides,
     val experimental: ExperimentalPreferences,
     val jellyfinTenEleven: Boolean,
+    val tsDirectPlay: Boolean,
 )

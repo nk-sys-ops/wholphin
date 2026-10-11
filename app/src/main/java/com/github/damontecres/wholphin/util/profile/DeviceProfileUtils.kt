@@ -76,6 +76,7 @@ fun createDeviceProfile(
     jellyfinTenEleven: Boolean,
     preferAc3ForSurround: Boolean,
     maxResolution: Int,
+    tsDirectPlay: Boolean = false,
 ) = buildDeviceProfile {
     val allowedAudioCodecs =
         when {
@@ -183,7 +184,7 @@ fun createDeviceProfile(
     directPlayProfile {
         type = DlnaProfileType.VIDEO
 
-        container(
+        val containers = mutableListOf(
             Codec.Container.ASF,
             Codec.Container.DASH,
             Codec.Container.HLS,
@@ -193,12 +194,18 @@ fun createDeviceProfile(
             Codec.Container.MP4,
             Codec.Container.OGM,
             Codec.Container.OGV,
-            Codec.Container.TS,
             Codec.Container.VOB,
             Codec.Container.WEBM,
             Codec.Container.WMV,
             Codec.Container.XVID,
         )
+        // Gated: with ts in the direct play list the client concludes direct play
+        // is viable for live TV even when the server's StreamBuilder returned
+        // PlayMethod=Transcode, then hangs on the resulting request.
+        if (tsDirectPlay) {
+            containers.add(Codec.Container.TS)
+        }
+        container(*containers.toTypedArray())
 
         videoCodec(
             Codec.Video.AV1,
