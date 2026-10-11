@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.MediaExtensionStatus
 import com.github.damontecres.wholphin.preferences.PlayerBackend
+import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.preferences.get
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.util.BitstreamFilteringCodecAdapterFactory

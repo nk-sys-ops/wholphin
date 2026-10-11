@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -99,7 +100,7 @@ class DvrScheduleViewModel
                                 // these still show up instead of being dropped or crashing.
                                 BaseItem.from(
                                     it.programInfo ?: org.jellyfin.sdk.model.api.BaseItemDto(
-                                        id = it.id?.let { idStr -> org.jellyfin.sdk.model.serializer.toUUID(idStr) }
+                                        id = it.id?.toUUIDOrNull()
                                             ?: java.util.UUID.randomUUID(),
                                         name = it.name,
                                         channelId = it.channelId,
