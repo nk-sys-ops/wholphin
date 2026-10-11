@@ -89,10 +89,13 @@ class PlayerFactory
                         val useLibAss =
                             prefs.overrides.assPlaybackMode == AssPlaybackMode.ASS_LIBASS
                         val decodeAv1 = prefs.overrides.decodeAv1
+                        val iptvRecovery =
+                            appPreferences.experimentalPreferences.enabled { iptvAudioRecoveryEnabled }
                         Timber.v(
-                            "extensions=%s, assPlaybackMode=%s",
+                            "extensions=%s, assPlaybackMode=%s, iptvRecovery=%s",
                             extensions,
                             prefs.overrides.assPlaybackMode,
+                            iptvRecovery,
                         )
                         val rendererMode =
                             when (extensions) {
@@ -102,13 +105,13 @@ class PlayerFactory
                                 else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
                             }
                         val dataSourceFactory = DefaultDataSource.Factory(context)
-                        val extractorsFactory = createExtractorsFactory()
+                        val extractorsFactory = createExtractorsFactory(iptvRecovery)
                         var renderersFactory: RenderersFactory =
                             WholphinRenderersFactory(context, decodeAv1)
                                 .setEnableDecoderFallback(true)
                                 .setExtensionRendererMode(rendererMode)
 
-                        val mediaSourceFactory =
+                        val defaultMediaSourceFactory =
                             if (useLibAss) {
                                 val renderType =
                                     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
@@ -132,6 +135,22 @@ class PlayerFactory
                                     extractorsFactory,
                                 )
                             }
+
+                        // Jellyfin Live TV can advertise a video-only codecs string when its
+                        // probe of the tuner stream misses the audio track. ExoPlayer then sets
+                        // FLAG_IGNORE_AAC_STREAM and discards the AAC elementary stream that is
+                        // actually present, producing video with no audio track group at all.
+                        // Reuses the IPTV audio recovery toggle since this is the same symptom.
+                        val mediaSourceFactory =
+                            if (iptvRecovery) {
+                                com.github.damontecres.wholphin.util.player.WholphinMediaSourceFactory(
+                                    default = defaultMediaSourceFactory,
+                                    dataSourceFactory = dataSourceFactory,
+                                )
+                            } else {
+                                defaultMediaSourceFactory
+                            }
+
                         val disableAudioOffload =
                             appPreferences.experimentalPreferences.get { disableAudioOffload } ?: false
                         val tunneling =
@@ -150,6 +169,69 @@ class PlayerFactory
                             .build()
                             .apply {
                                 assHandler?.init(this)
+
+                                // Always-on playback diagnostics (not gated on any toggle).
+                                // Errors were previously swallowed entirely, so a failure
+                                // surfaced only as "it doesn't work" with nothing actionable in
+                                // logcat. Grep WHOLPHIN_DIAG to pull just these lines.
+                                addListener(
+                                    object : Player.Listener {
+                                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                            Timber.e(
+                                                error,
+                                                "WHOLPHIN_DIAG playback_error code=%d codeName=%s msg=%s cause=%s",
+                                                error.errorCode,
+                                                error.errorCodeName,
+                                                error.message,
+                                                error.cause?.toString(),
+                                            )
+                                        }
+
+                                        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                                            if (tracks.groups.isEmpty()) {
+                                                Timber.w("WHOLPHIN_DIAG tracks_changed NO_TRACKS_AT_ALL")
+                                                return
+                                            }
+                                            tracks.groups.forEach { group ->
+                                                for (i in 0 until group.length) {
+                                                    val f = group.getTrackFormat(i)
+                                                    Timber.i(
+                                                        "WHOLPHIN_DIAG track type=%d selected=%b mime=%s codec=%s channels=%d rate=%d lang=%s",
+                                                        group.type,
+                                                        group.isTrackSelected(i),
+                                                        f.sampleMimeType,
+                                                        f.codecs,
+                                                        f.channelCount,
+                                                        f.sampleRate,
+                                                        f.language,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
+                                if (iptvRecovery) {
+                                    addListener(
+                                        object : Player.Listener {
+                                            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                                                val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                                                if (audioGroups.isNotEmpty() && tracks.groups.none { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }) {
+                                                    val firstAudioGroup = audioGroups.first()
+                                                    trackSelector.parameters =
+                                                        trackSelector
+                                                            .buildUponParameters()
+                                                            .setOverrideForType(
+                                                                androidx.media3.common.TrackSelectionOverride(
+                                                                    firstAudioGroup.mediaTrackGroup,
+                                                                    0,
+                                                                ),
+                                                            ).build()
+                                                    Timber.i("ExoPlayer auto-selected fallback audio track: %s", firstAudioGroup.mediaTrackGroup)
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
                                 withContext(WholphinDispatchers.Main) {
                                     setAudioAttributes(
                                         AudioAttributes
@@ -210,10 +292,18 @@ class PlayerFactory
                 }
         }
 
-        private fun createExtractorsFactory() =
+        private fun createExtractorsFactory(iptvRecovery: Boolean = true) =
             DefaultExtractorsFactory()
                 .setConstantBitrateSeekingEnabled(true)
                 .setConstantBitrateSeekingAlwaysEnabled(true)
+                .apply {
+                    if (iptvRecovery) {
+                        setTsExtractorFlags(
+                            androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS,
+                        )
+                    }
+                }
 
         private fun createTrackSelector(
             tunneling: Boolean? = null,
