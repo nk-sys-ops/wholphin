@@ -51,7 +51,7 @@ fun ProgramDialog(
     canRecord: Boolean,
     onDismissRequest: () -> Unit,
     onWatch: (BaseItem) -> Unit,
-    onWatchRecordingInProgress: (BaseItem) -> Unit,
+    onWatchRecordingInProgress: (BaseItem) -> Unit = {},
     onRecord: (BaseItem, series: Boolean) -> Unit,
     onCancelRecord: (BaseItem, series: Boolean) -> Unit,
 ) {

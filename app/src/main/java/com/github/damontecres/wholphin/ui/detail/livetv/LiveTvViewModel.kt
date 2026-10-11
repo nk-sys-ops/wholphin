@@ -28,6 +28,7 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -507,7 +508,7 @@ class LiveTvViewModel
                     api.liveTvApi
                         .getRecordings(
                             org.jellyfin.sdk.model.api.request.GetRecordingsRequest(
-                                channelId = com.github.damontecres.wholphin.ui.toServerString(channelId),
+                                channelId = channelId.toServerString(),
                                 isInProgress = true,
                             ),
                         ).content
