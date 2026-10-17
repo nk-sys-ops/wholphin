@@ -32,6 +32,7 @@ import com.github.damontecres.wholphin.preferences.MediaExtensionStatus
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.preferences.get
+import com.github.damontecres.wholphin.preferences.iptvAudioRecoveryEnabledOrDefault
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.util.BitstreamFilteringCodecAdapterFactory
 import com.github.damontecres.wholphin.util.Hdr10PlusMaskingFilter
@@ -96,7 +97,7 @@ class PlayerFactory
                             appPreferences.experimentalPreferences
                                 .get { preferDolbyVisionOverHdr10Plus } ?: false
                         val iptvRecovery =
-                            appPreferences.experimentalPreferences.enabled { iptvAudioRecoveryEnabled }
+                            appPreferences.experimentalPreferences.enabled { iptvAudioRecoveryEnabledOrDefault() }
                         Timber.v(
                             "extensions=%s, assPlaybackMode=%s, iptvRecovery=%s",
                             extensions,

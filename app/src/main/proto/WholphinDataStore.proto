@@ -230,8 +230,12 @@ message ExperimentalPreferences {
   bool prefer_ac3_surround = 3;
   bool disable_audio_offload = 4;
   bool prefer_dolby_vision_over_hdr10_plus = 5;
-  bool iptv_audio_recovery_enabled = 6;
-  bool ts_direct_play = 7;
+
+  // Fork convention: fork-specific fields MUST use field numbers >= 1000 so
+  // upstream additions (6, 7, 8, ...) never collide with stored user settings.
+  optional bool iptv_audio_recovery_enabled = 1001;
+  optional bool ts_direct_play = 1002;
+  optional int32 fork_prefs_version = 1003;
 }
 
 message AppPreferences {

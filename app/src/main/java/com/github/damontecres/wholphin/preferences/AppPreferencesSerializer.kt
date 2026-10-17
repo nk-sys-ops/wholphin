@@ -4,8 +4,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.Serializer
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings
+import com.google.protobuf.CodedInputStream
 import com.google.protobuf.InvalidProtocolBufferException
+import com.google.protobuf.WireFormat
 import org.jellyfin.sdk.model.api.BaseItemKind
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import javax.inject.Inject
@@ -190,13 +193,17 @@ class AppPreferencesSerializer
                                 // which affected channels need to have any audio at all.
                                 // Must be set here: this assignment replaces the whole
                                 // message, so setting it elsewhere is silently discarded.
-                                iptvAudioRecoveryEnabled = true
+                                iptvAudioRecoveryEnabled = ExperimentalPreference.IptvAudioRecovery.defaultValue
+                                tsDirectPlay = ExperimentalPreference.TsDirectPlay.defaultValue
+                                forkPrefsVersion = FORK_PREFS_VERSION
                             }.build()
                 }.build()
 
         override suspend fun readFrom(input: InputStream): AppPreferences {
             try {
-                return AppPreferences.parseFrom(input)
+                val rawBytes = input.readBytes()
+                val parsed = AppPreferences.parseFrom(rawBytes)
+                return migrateForkExperimentalPreferences(parsed, rawBytes)
             } catch (exception: InvalidProtocolBufferException) {
                 throw CorruptionException("Cannot read proto.", exception)
             }
@@ -206,6 +213,146 @@ class AppPreferencesSerializer
             t: AppPreferences,
             output: OutputStream,
         ) = t.writeTo(output)
+
+        companion object {
+            const val FORK_PREFS_VERSION = 1
+
+            fun migrateForkExperimentalPreferences(
+                parsed: AppPreferences,
+                rawAppPrefsBytes: ByteArray,
+            ): AppPreferences {
+                if (parsed.hasExperimentalPreferences() &&
+                    parsed.experimentalPreferences.hasForkPrefsVersion() &&
+                    parsed.experimentalPreferences.forkPrefsVersion >= FORK_PREFS_VERSION
+                ) {
+                    return if (parsed.experimentalPreferences.hasIptvAudioRecoveryEnabled() &&
+                        parsed.experimentalPreferences.hasTsDirectPlay()
+                    ) {
+                        parsed
+                    } else {
+                        parsed.updateExperimentalPreferences {
+                            if (!hasIptvAudioRecoveryEnabled()) {
+                                iptvAudioRecoveryEnabled =
+                                    ExperimentalPreference.IptvAudioRecovery.defaultValue
+                            }
+                            if (!hasTsDirectPlay()) {
+                                tsDirectPlay = ExperimentalPreference.TsDirectPlay.defaultValue
+                            }
+                        }
+                    }
+                }
+
+                val rawExpBytes =
+                    if (parsed.hasExperimentalPreferences()) {
+                        extractExperimentalPreferencesBytes(rawAppPrefsBytes)
+                    } else {
+                        ByteArray(0)
+                    }
+
+                val migratedExp =
+                    migrateExperimentalPreferencesBytes(
+                        rawExpBytes = rawExpBytes,
+                        isPresentInAppPrefs = parsed.hasExperimentalPreferences(),
+                    )
+
+                return parsed.toBuilder().setExperimentalPreferences(migratedExp).build()
+            }
+
+            fun migrateExperimentalPreferencesBytes(
+                rawExpBytes: ByteArray,
+                isPresentInAppPrefs: Boolean = rawExpBytes.isNotEmpty(),
+            ): ExperimentalPreferences {
+                var enabled = false
+                var videoTunnelingEnabled = false
+                var preferAc3Surround = ExperimentalPreference.PreferAc3ForSurround.defaultValue
+                var disableAudioOffload = ExperimentalPreference.DisableAudioOffload.defaultValue
+                var tag5 = false
+                var tag6 = false
+                var iptv1001: Boolean? = null
+                var ts1002: Boolean? = null
+                var version1003: Int? = null
+
+                val input = CodedInputStream.newInstance(rawExpBytes)
+                while (!input.isAtEnd) {
+                    val tag = input.readTag()
+                    if (tag == 0) break
+                    when (WireFormat.getTagFieldNumber(tag)) {
+                        1 -> enabled = input.readBool()
+                        2 -> videoTunnelingEnabled = input.readBool()
+                        3 -> preferAc3Surround = input.readBool()
+                        4 -> disableAudioOffload = input.readBool()
+                        5 -> tag5 = input.readBool()
+                        6 -> tag6 = input.readBool()
+                        7 -> input.skipField(tag) // drop unshipped rebase slot 7
+                        1001 -> iptv1001 = input.readBool()
+                        1002 -> ts1002 = input.readBool()
+                        1003 -> version1003 = input.readInt32()
+                        else -> input.skipField(tag)
+                    }
+                }
+
+                if (version1003 != null && version1003 >= FORK_PREFS_VERSION) {
+                    return ExperimentalPreferences
+                        .newBuilder()
+                        .apply {
+                            this.enabled = enabled
+                            this.videoTunnelingEnabled = videoTunnelingEnabled
+                            this.preferAc3Surround = preferAc3Surround
+                            this.disableAudioOffload = disableAudioOffload
+                            this.preferDolbyVisionOverHdr10Plus = tag5
+                            this.iptvAudioRecoveryEnabled =
+                                iptv1001 ?: ExperimentalPreference.IptvAudioRecovery.defaultValue
+                            this.tsDirectPlay =
+                                ts1002 ?: ExperimentalPreference.TsDirectPlay.defaultValue
+                            this.forkPrefsVersion = version1003
+                        }.build()
+                }
+
+                val isFreshInstall = !isPresentInAppPrefs && rawExpBytes.isEmpty()
+                return ExperimentalPreferences
+                    .newBuilder()
+                    .apply {
+                        this.enabled = enabled
+                        this.videoTunnelingEnabled = videoTunnelingEnabled
+                        this.preferAc3Surround = preferAc3Surround
+                        this.disableAudioOffload = disableAudioOffload
+                        // Reset tag 5 so upstream's prefer_dolby_vision_over_hdr10_plus starts clean (false)
+                        this.preferDolbyVisionOverHdr10Plus =
+                            ExperimentalPreference.PreferDolbyVisionOverHdr10Plus.defaultValue
+                        this.iptvAudioRecoveryEnabled =
+                            iptv1001 ?: if (isFreshInstall) {
+                                ExperimentalPreference.IptvAudioRecovery.defaultValue
+                            } else {
+                                tag5
+                            }
+                        this.tsDirectPlay =
+                            ts1002 ?: if (isFreshInstall) {
+                                ExperimentalPreference.TsDirectPlay.defaultValue
+                            } else {
+                                tag6
+                            }
+                        this.forkPrefsVersion = FORK_PREFS_VERSION
+                    }.build()
+            }
+
+            private fun extractExperimentalPreferencesBytes(rawAppPrefsBytes: ByteArray): ByteArray {
+                val out = ByteArrayOutputStream()
+                val input = CodedInputStream.newInstance(rawAppPrefsBytes)
+                while (!input.isAtEnd) {
+                    val tag = input.readTag()
+                    if (tag == 0) break
+                    val fieldNumber = WireFormat.getTagFieldNumber(tag)
+                    if (fieldNumber == AppPreferences.EXPERIMENTAL_PREFERENCES_FIELD_NUMBER &&
+                        WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED
+                    ) {
+                        out.write(input.readByteArray())
+                    } else {
+                        input.skipField(tag)
+                    }
+                }
+                return out.toByteArray()
+            }
+        }
     }
 
 inline fun AppPreferences.update(block: AppPreferences.Builder.() -> Unit): AppPreferences = toBuilder().apply(block).build()

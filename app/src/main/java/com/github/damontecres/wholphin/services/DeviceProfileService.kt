@@ -6,6 +6,7 @@ import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.ExperimentalPreferences
 import com.github.damontecres.wholphin.preferences.PlaybackOverrides
 import com.github.damontecres.wholphin.preferences.enabled
+import com.github.damontecres.wholphin.preferences.tsDirectPlayOrDefault
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.profile.MediaCodecCapabilitiesTest
 import com.github.damontecres.wholphin.util.profile.createDeviceProfile
@@ -50,7 +51,7 @@ class DeviceProfileService
                             experimental = appPrefs.experimentalPreferences,
                             jellyfinTenEleven =
                                 serverVersion != null && serverVersion >= ServerVersion(10, 11, 0),
-                            tsDirectPlay = appPrefs.experimentalPreferences.enabled { tsDirectPlay },
+                            tsDirectPlay = appPrefs.experimentalPreferences.enabled { tsDirectPlayOrDefault() },
                         )
                     if (deviceProfile == null || this@DeviceProfileService.configuration != newConfig) {
                         this@DeviceProfileService.configuration = newConfig

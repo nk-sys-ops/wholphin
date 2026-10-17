@@ -87,7 +87,7 @@ object ExperimentalPreference {
         AppSwitchPreference<AppPreferences>(
             title = R.string.iptv_audio_recovery,
             defaultValue = true,
-            getter = { it.experimentalPreferences.iptvAudioRecoveryEnabled },
+            getter = { it.experimentalPreferences.iptvAudioRecoveryEnabledOrDefault() },
             setter = { prefs, value ->
                 prefs.updateExperimentalPreferences { iptvAudioRecoveryEnabled = value }
             },
@@ -100,7 +100,7 @@ object ExperimentalPreference {
         AppSwitchPreference<AppPreferences>(
             title = R.string.ts_direct_play,
             defaultValue = false, // Default to FALSE to force HLS in the experiment
-            getter = { it.experimentalPreferences.tsDirectPlay },
+            getter = { it.experimentalPreferences.tsDirectPlayOrDefault() },
             setter = { prefs, value ->
                 prefs.updateExperimentalPreferences { tsDirectPlay = value }
             },
@@ -134,3 +134,17 @@ val experimentalPreferences =
 fun <T> ExperimentalPreferences.get(block: ExperimentalPreferences.() -> T): T? = if (enabled) block.invoke(this) else null
 
 fun ExperimentalPreferences.enabled(block: ExperimentalPreferences.() -> Boolean): Boolean = enabled && block.invoke(this)
+
+/**
+ * Returns [ExperimentalPreferences.getIptvAudioRecoveryEnabled] when explicitly set on the proto,
+ * or `true` (ON) when absent.
+ */
+fun ExperimentalPreferences.iptvAudioRecoveryEnabledOrDefault(): Boolean =
+    if (hasIptvAudioRecoveryEnabled()) iptvAudioRecoveryEnabled else true
+
+/**
+ * Returns [ExperimentalPreferences.getTsDirectPlay] when explicitly set on the proto,
+ * or `false` (OFF) when absent.
+ */
+fun ExperimentalPreferences.tsDirectPlayOrDefault(): Boolean =
+    if (hasTsDirectPlay()) tsDirectPlay else false
