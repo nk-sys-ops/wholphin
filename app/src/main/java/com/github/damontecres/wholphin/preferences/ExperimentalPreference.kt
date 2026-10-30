@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.preferences
 
+import android.content.Context
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
@@ -108,6 +109,36 @@ object ExperimentalPreference {
             summaryOff = R.string.disabled,
             summary = R.string.ts_direct_play_summary,
         )
+
+    val MctScheduleUrl =
+        AppStringPreference<AppPreferences>(
+            title = R.string.mct_schedule_url,
+            defaultValue = "",
+            getter = { it.experimentalPreferences.mctScheduleUrl },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { mctScheduleUrl = value }
+            },
+            summary = null,
+        )
+
+    val MctScheduleToken =
+        object : AppStringPreference<AppPreferences>(
+            title = R.string.mct_schedule_token,
+            defaultValue = "",
+            getter = { it.experimentalPreferences.mctScheduleToken },
+            setter = { prefs, value ->
+                prefs.updateExperimentalPreferences { mctScheduleToken = value }
+            },
+            summary = null,
+        ) {
+            override fun summary(
+                context: Context,
+                value: String?,
+            ): String? {
+                if (value.isNullOrBlank()) return null
+                return "••••••••"
+            }
+        }
 }
 
 val experimentalPreferences =
@@ -123,6 +154,8 @@ val experimentalPreferences =
                         ExperimentalPreference.PreferAc3ForSurround,
                         ExperimentalPreference.DisableAudioOffload,
                         ExperimentalPreference.TsDirectPlay,
+                        ExperimentalPreference.MctScheduleUrl,
+                        ExperimentalPreference.MctScheduleToken,
                     ),
             ),
         )

@@ -5,10 +5,13 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.datastore.core.DataStore
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,7 +38,9 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -48,7 +54,12 @@ import com.github.damontecres.wholphin.util.LoadingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -56,6 +67,7 @@ import timber.log.Timber
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -64,9 +76,20 @@ class DvrScheduleViewModel
     constructor(
         private val api: ApiClient,
         val navigationManager: NavigationManager,
+        private val preferencesDataStore: DataStore<AppPreferences>,
+        @StandardOkHttpClient private val okHttpClient: OkHttpClient,
     ) : ViewModel() {
         private val _state = MutableStateFlow(DvrScheduleState())
         val state: StateFlow<DvrScheduleState> = _state
+
+        private val mctJson = Json { ignoreUnknownKeys = true }
+        private val mctHttpClient: OkHttpClient by lazy {
+            okHttpClient
+                .newBuilder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build()
+        }
 
         init {
             init()
@@ -133,6 +156,49 @@ class DvrScheduleViewModel
                     _state.update { it.copy(loading = LoadingState.Error(ex)) }
                 }
             }
+            fetchMctSchedule()
+        }
+
+        private fun fetchMctSchedule() {
+            viewModelScope.launchIO {
+                try {
+                    val prefs = preferencesDataStore.data.first()
+                    val url = prefs.experimentalPreferences.mctScheduleUrl.trim()
+                    val token = prefs.experimentalPreferences.mctScheduleToken.trim()
+
+                    if (url.isBlank()) {
+                        _state.update { it.copy(mctState = MctScheduleUiState.Disabled) }
+                        return@launchIO
+                    }
+
+                    val requestBuilder = Request.Builder().url(url)
+                    if (token.isNotBlank()) {
+                        requestBuilder.header("Authorization", "Bearer $token")
+                    }
+                    val request = requestBuilder.build()
+
+                    val response = mctHttpClient.newCall(request).execute()
+                    response.use { res ->
+                        if (!res.isSuccessful) {
+                            Timber.w("MCT schedule request failed with HTTP ${res.code}")
+                            _state.update { it.copy(mctState = MctScheduleUiState.Unavailable) }
+                            return@launchIO
+                        }
+                        val body = res.body?.string()
+                        if (body.isNullOrBlank()) {
+                            _state.update { it.copy(mctState = MctScheduleUiState.Unavailable) }
+                            return@launchIO
+                        }
+                        val scheduleResp = mctJson.decodeFromString<MctScheduleResponse>(body)
+                        _state.update {
+                            it.copy(mctState = MctScheduleUiState.Success(scheduleResp.bookings))
+                        }
+                    }
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Failed to load MCT schedule")
+                    _state.update { it.copy(mctState = MctScheduleUiState.Unavailable) }
+                }
+            }
         }
 
         fun cancelRecording(
@@ -175,10 +241,33 @@ class DvrScheduleViewModel
         }
     }
 
+@Serializable
+data class MctScheduleResponse(
+    val generated: String = "",
+    val bookings: List<MctBooking> = emptyList(),
+)
+
+@Serializable
+data class MctBooking(
+    val id: String = "",
+    val title: String = "",
+    val channel: String = "",
+    val start: String = "",
+    val end: String = "",
+    val recording: Boolean = false,
+)
+
+sealed interface MctScheduleUiState {
+    data object Disabled : MctScheduleUiState
+    data object Unavailable : MctScheduleUiState
+    data class Success(val bookings: List<MctBooking>) : MctScheduleUiState
+}
+
 data class DvrScheduleState(
     val loading: LoadingState = LoadingState.Loading,
     val active: List<BaseItem> = emptyList(),
     val scheduled: Map<LocalDate, List<BaseItem>> = emptyMap(),
+    val mctState: MctScheduleUiState = MctScheduleUiState.Disabled,
 )
 
 @Composable
@@ -208,7 +297,8 @@ fun DvrSchedule(
             val focusRequester = remember { FocusRequester() }
             if (requestFocusAfterLoading) {
                 LaunchedEffect(Unit) {
-                    if (state.active.isNotEmpty() || state.scheduled.isNotEmpty()) {
+                    val hasMct = (state.mctState as? MctScheduleUiState.Success)?.bookings?.isNotEmpty() == true
+                    if (state.active.isNotEmpty() || state.scheduled.isNotEmpty() || hasMct) {
                         focusRequester.tryRequestFocus()
                     } else {
                         focusRequesterOnEmpty.tryRequestFocus()
@@ -218,6 +308,7 @@ fun DvrSchedule(
             DvrScheduleContent(
                 activeRecordings = state.active,
                 scheduledRecordings = state.scheduled,
+                mctState = state.mctState,
                 onClickItem = {
                     showDialog = it
                 },
@@ -273,10 +364,14 @@ fun DvrSchedule(
 fun DvrScheduleContent(
     activeRecordings: List<BaseItem>,
     scheduledRecordings: Map<LocalDate, List<BaseItem>>,
+    mctState: MctScheduleUiState = MctScheduleUiState.Disabled,
     onClickItem: (BaseItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val hasMctItems = (mctState as? MctScheduleUiState.Success)?.bookings?.isNotEmpty() == true
+    val isEverythingEmpty = activeRecordings.isEmpty() && scheduledRecordings.isEmpty() && !hasMctItems && mctState is MctScheduleUiState.Disabled
+
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = modifier,
@@ -290,7 +385,7 @@ fun DvrScheduleContent(
                     .fillMaxWidth(.6f)
                     .background(MaterialTheme.colorScheme.surface),
         ) {
-            if (activeRecordings.isEmpty() && scheduledRecordings.isEmpty()) {
+            if (isEverythingEmpty) {
                 item {
                     Text(
                         text = stringResource(R.string.no_scheduled_recordings),
@@ -343,6 +438,37 @@ fun DvrScheduleContent(
                         onClick = { onClickItem.invoke(item) },
                         modifier = Modifier,
                     )
+                }
+            }
+            if (mctState !is MctScheduleUiState.Disabled) {
+                item {
+                    Text(
+                        text = stringResource(R.string.mct_recordings_header),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                when (mctState) {
+                    is MctScheduleUiState.Unavailable -> {
+                        item {
+                            Text(
+                                text = stringResource(R.string.mct_schedule_unavailable),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    is MctScheduleUiState.Success -> {
+                        items(mctState.bookings, key = { it.id.ifBlank { it.title + it.start } }) { booking ->
+                            MctRecording(
+                                booking = booking,
+                                modifier = Modifier,
+                            )
+                        }
+                    }
+                    MctScheduleUiState.Disabled -> {}
                 }
             }
         }
@@ -408,4 +534,81 @@ fun Recording(
             )
         },
     )
+}
+
+@Composable
+fun MctRecording(
+    booking: MctBooking,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val time =
+        remember(booking.start, booking.end) {
+            try {
+                val startMillis = OffsetDateTime.parse(booking.start).toInstant().toEpochMilli()
+                val endMillis = OffsetDateTime.parse(booking.end).toInstant().toEpochMilli()
+                DateUtils.formatDateRange(
+                    context,
+                    startMillis,
+                    endMillis,
+                    DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_ALL,
+                )
+            } catch (ex: Exception) {
+                listOf(booking.start, booking.end).filter { it.isNotBlank() }.joinToString(" - ")
+            }
+        }
+
+    ListItem(
+        selected = false,
+        onClick = { },
+        modifier = modifier,
+        colors =
+            ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
+            ),
+        headlineContent = {
+            Text(
+                text = booking.title,
+            )
+        },
+        supportingContent = {
+            if (booking.channel.isNotBlank()) {
+                Text(
+                    text = booking.channel,
+                    modifier = Modifier,
+                )
+            }
+        },
+        trailingContent = {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (booking.recording) {
+                    MctRecordingBadge()
+                }
+                Text(
+                    text = time,
+                )
+            }
+        },
+    )
+}
+
+@Composable
+fun MctRecordingBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier =
+            modifier
+                .background(
+                    color = MaterialTheme.colorScheme.error,
+                    shape = RoundedCornerShape(4.dp),
+                ).padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.recording_now),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onError,
+        )
+    }
 }

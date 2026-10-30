@@ -957,4 +957,11 @@
     <string name="iptv_audio_recovery_summary">Auto-select fallback audio streams and apply TiviMate-grade TsExtractor flags on IPTV feeds</string>
     <string name="ts_direct_play">Direct Play TS</string>
     <string name="ts_direct_play_summary">Direct play MPEG-TS streams instead of forcing HLS transcoding</string>
+    <string name="mct_schedule_url">MCT schedule URL</string>
+    <string name="mct_schedule_url_summary">Dashboard schedule URL (e.g. http://dashboard-host:8099/api/mct-schedule)</string>
+    <string name="mct_schedule_token">MCT schedule token</string>
+    <string name="mct_schedule_token_summary">Bearer token for /api/mct-schedule</string>
+    <string name="mct_recordings_header">MCT recordings</string>
+    <string name="mct_schedule_unavailable">MCT schedule unavailable</string>
+    <string name="recording_now">Recording now</string>
 </resources>
